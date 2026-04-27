@@ -78,6 +78,8 @@ const prompts: Prompt[] = [
   },
 ];
 
+import { supabase } from '@/lib/supabase';
+
 export default function Home() {
   const [index, setIndex] = useState(0);
   const [responses, setResponses] = useState<string[]>(Array(prompts.length).fill(''));
@@ -90,6 +92,7 @@ export default function Home() {
   const [workEmail, setWorkEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [contactSaved, setContactSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const active = prompts[index];
   const isLast = index === prompts.length - 1;
@@ -126,12 +129,33 @@ export default function Home() {
     }
   };
 
-  const onContactSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const onContactSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (workEmail.trim().length === 0) {
       return;
     }
-    setContactSaved(true);
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('inspection_results').insert([
+        {
+          email: workEmail,
+          phone: phoneNumber,
+          responses: responses,
+          slow_evidence: slowEvidence,
+          good_practice: goodPractice,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (error) throw error;
+      setContactSaved(true);
+    } catch (err) {
+      console.error('Error saving to Supabase:', err);
+      alert('Failed to save details. Please check your connection.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -255,7 +279,9 @@ export default function Home() {
                 placeholder="+44..."
               />
 
-              <button type="submit">Save details</button>
+              <button type="submit" disabled={saving}>
+                {saving ? 'Saving...' : 'Save details'}
+              </button>
               {contactSaved && (
                 <p className="contact-success">
                   Details saved. Thanks - your inspection prep summary is ready to send.
