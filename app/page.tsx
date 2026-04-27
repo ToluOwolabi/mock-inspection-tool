@@ -1,296 +1,161 @@
-'use client';
+import Link from 'next/link'
 
-import { useMemo, useState } from 'react';
-import type { Dispatch, FormEvent, SetStateAction } from 'react';
-
-type KeyQuestion = 'Safe' | 'Effective' | 'Caring' | 'Responsive' | 'Well-led';
-
-type Prompt = {
-  id: number;
-  keyQuestion: KeyQuestion;
-  requirement: string;
-  question: string;
-};
-
-const prompts: Prompt[] = [
+const features = [
   {
-    id: 1,
-    keyQuestion: 'Well-led',
-    requirement: 'Regulation 17',
-    question:
-      'What type of service are you providing, how many people use it, and what was your most recent CQC rating across the five key questions?',
+    step: '1',
+    title: 'Tell us about your service',
+    description:
+      'A brief context form about your care setting, number of service users, and most recent CQC rating.',
   },
   {
-    id: 2,
-    keyQuestion: 'Safe',
-    requirement: 'Regulation 12',
-    question:
-      'Walk me through your current medication process, and show me where I would find the latest MAR chart and any medication error log from the last 3 months.',
+    step: '2',
+    title: 'Answer 9 inspector-style questions',
+    description:
+      'Real questions across Safe, Effective, Caring, Responsive, and Well-led — asked exactly as an inspector would.',
   },
   {
-    id: 3,
-    keyQuestion: 'Safe',
-    requirement: 'Regulation 13',
-    question:
-      'Tell me about your most recent safeguarding concern. How quickly did staff escalate it, and where is your response timeline recorded?',
+    step: '3',
+    title: 'Get your readiness score and report',
+    description:
+      'Instant analysis showing where evidence is strong and where retrieval is slow. Download as PDF.',
   },
-  {
-    id: 4,
-    keyQuestion: 'Effective',
-    requirement: 'Regulation 18',
-    question:
-      'How often are supervisions completed, and can you identify who is currently overdue and what action has been taken?',
-  },
-  {
-    id: 5,
-    keyQuestion: 'Effective',
-    requirement: 'Regulation 9',
-    question:
-      'Pick one person you support. When was their care plan last reviewed, and how would you evidence that changes in need were reflected promptly?',
-  },
-  {
-    id: 6,
-    keyQuestion: 'Caring',
-    requirement: 'Regulation 10',
-    question:
-      'How do you evidence that people are treated with dignity and involved in decisions? Please reference one recent documented example.',
-  },
-  {
-    id: 7,
-    keyQuestion: 'Responsive',
-    requirement: 'Regulation 16',
-    question:
-      'Show me your complaints log for this quarter. How quickly were complaints acknowledged, investigated, and closed with feedback to the person?',
-  },
-  {
-    id: 8,
-    keyQuestion: 'Safe',
-    requirement: 'Regulation 19',
-    question:
-      'For your latest staff recruit, how would you evidence safer recruitment checks: DBS, right to work, and references before start date?',
-  },
-  {
-    id: 9,
-    keyQuestion: 'Well-led',
-    requirement: 'Regulation 17',
-    question:
-      'What are your two weakest inspection-readiness areas today, and how would you provide evidence for each within 5 minutes?',
-  },
-];
+]
 
-import { supabase } from '@/lib/supabase';
+const benefits = [
+  'Know exactly which evidence you can retrieve in seconds vs. what needs searching for',
+  'Identify the patterns inspectors flag as "organised but manually managed"',
+  'Your readiness score across all 5 key CQC questions',
+  'A downloadable PDF report to share with your management team',
+]
 
-export default function Home() {
-  const [index, setIndex] = useState(0);
-  const [responses, setResponses] = useState<string[]>(Array(prompts.length).fill(''));
-  const [slowEvidence, setSlowEvidence] = useState<boolean[]>(
-    Array(prompts.length).fill(false),
-  );
-  const [goodPractice, setGoodPractice] = useState<boolean[]>(
-    Array(prompts.length).fill(false),
-  );
-  const [workEmail, setWorkEmail] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [contactSaved, setContactSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const active = prompts[index];
-  const isLast = index === prompts.length - 1;
-  const complete = responses.every((entry) => entry.trim().length > 0);
-
-  const completedCount = useMemo(
-    () => responses.filter((entry) => entry.trim().length > 0).length,
-    [responses],
-  );
-
-  const updateResponse = (value: string) => {
-    setResponses((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
-  };
-
-  const updateFlag = (setter: Dispatch<SetStateAction<boolean[]>>, value: boolean) => {
-    setter((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
-  };
-
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (responses[index].trim().length === 0) {
-      return;
-    }
-    if (!isLast) {
-      setIndex((prev) => prev + 1);
-    }
-  };
-
-  const onContactSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (workEmail.trim().length === 0) {
-      return;
-    }
-    
-    setSaving(true);
-    try {
-      const { error } = await supabase.from('inspection_results').insert([
-        {
-          email: workEmail,
-          phone: phoneNumber,
-          responses: responses,
-          slow_evidence: slowEvidence,
-          good_practice: goodPractice,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (error) throw error;
-      setContactSaved(true);
-    } catch (err) {
-      console.error('Error saving to Supabase:', err);
-      alert('Failed to save details. Please check your connection.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
+export default function LandingPage() {
   return (
-    <main className="app-shell">
-      <section className="card intro-card">
-        <p className="eyebrow">CQC Mock Inspection Tool</p>
-        <h1>Minimal, conversational inspection dry run</h1>
-        <p className="lead">
-          Ask questions as an inspector would, gather evidence quickly, and expose
-          where retrieval is slow before inspection day.
-        </p>
-      </section>
-
-      <section className="card question-card">
-        <div className="question-meta">
-          <span>Question {index + 1} of {prompts.length}</span>
-          <span>{active.keyQuestion}</span>
-          <span>{active.requirement}</span>
+    <div className="min-h-screen bg-white">
+      <header className="border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-nhs-blue rounded-md flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <span className="text-sm font-semibold text-gray-800">CQC Readiness</span>
+          </div>
+          <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+            Free · No account needed
+          </span>
         </div>
-        <p className="question-text">{active.question}</p>
+      </header>
 
-        <form onSubmit={onSubmit}>
-          <label htmlFor="response" className="label">
-            Manager response
-          </label>
-          <textarea
-            id="response"
-            value={responses[index]}
-            onChange={(event) => updateResponse(event.target.value)}
-            placeholder="Type how you would answer during inspection..."
-          />
-
-          <div className="toggles">
-            <label>
-              <input
-                type="checkbox"
-                checked={slowEvidence[index]}
-                onChange={(event) => updateFlag(setSlowEvidence, event.target.checked)}
-              />
-              Evidence was slow to retrieve
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={goodPractice[index]}
-                onChange={(event) => updateFlag(setGoodPractice, event.target.checked)}
-              />
-              Strong practice demonstrated
-            </label>
+      <section className="max-w-5xl mx-auto px-4 pt-16 pb-20 md:pt-24 md:pb-28">
+        <div className="max-w-2xl">
+          <div className="inline-flex items-center gap-2 bg-nhs-light-blue text-nhs-dark-blue text-sm font-medium px-4 py-2 rounded-full mb-8">
+            <span className="w-2 h-2 bg-nhs-blue rounded-full"></span>
+            Takes 10 minutes · Free to use
           </div>
 
-          <div className="actions">
-            <button
-              type="button"
-              onClick={() => setIndex((prev) => Math.max(0, prev - 1))}
-              disabled={index === 0}
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-6">
+            Test Your CQC Inspection<br />
+            <span className="text-nhs-blue">Readiness in 10 Minutes</span>
+          </h1>
+
+          <p className="text-xl text-gray-600 leading-relaxed mb-10">
+            Go through a realistic mock inspection. See exactly where your evidence retrieval is slow — before an inspector does.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <Link
+              href="/inspect"
+              className="inline-flex items-center justify-center bg-nhs-blue text-white text-lg font-semibold px-8 py-4 rounded-xl hover:bg-nhs-dark-blue transition-colors shadow-sm"
             >
-              Back
-            </button>
-            <button type="submit">{isLast ? 'Finish questions' : 'Next question'}</button>
+              Start Free Mock Inspection
+              <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+            <p className="text-sm text-gray-500">No sign-up until you want your report</p>
           </div>
-        </form>
+        </div>
       </section>
 
-      <section className="card progress-card">
-        <p>
-          <strong>{completedCount}</strong> / {prompts.length} responses completed
-        </p>
-        <p>
-          Slow retrieval flags: <strong>{slowEvidence.filter(Boolean).length}</strong> | Good
-          practice flags: <strong>{goodPractice.filter(Boolean).length}</strong>
-        </p>
+      <div className="bg-gray-50 border-y border-gray-100 py-4">
+        <div className="max-w-5xl mx-auto px-4 text-center">
+          <p className="text-sm text-gray-500">
+            Covers all 5 key CQC questions ·{' '}
+            <span className="font-medium text-gray-700">Safe · Effective · Caring · Responsive · Well-led</span>
+          </p>
+        </div>
+      </div>
+
+      <section className="max-w-5xl mx-auto px-4 py-20">
+        <h2 className="text-2xl font-bold text-gray-900 mb-12 text-center">How it works</h2>
+        <div className="grid md:grid-cols-3 gap-8">
+          {features.map((item) => (
+            <div key={item.step} className="flex flex-col gap-4">
+              <div className="w-10 h-10 bg-nhs-blue text-white rounded-xl flex items-center justify-center font-bold text-lg flex-none">
+                {item.step}
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">{item.title}</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">{item.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
-      {complete && (
-        <>
-          <section className="card closeout-card">
-            <h2>Inspection closeout prompt</h2>
-            <ol>
-              <li>List 3 specific strengths observed.</li>
-              <li>List 3 areas where evidence retrieval was slow or uncertain.</li>
-              <li>
-                Identify one systemic pattern (for example: evidence exists but retrieval
-                is manual and time-consuming).
-              </li>
-            </ol>
-            <blockquote>
-              The gap isn&apos;t usually in the care itself - it&apos;s in being able to prove
-              it quickly when inspectors ask. Most managers know what good looks like but
-              lose hours every week making sure it&apos;s documented correctly.
-            </blockquote>
-          </section>
+      <section className="bg-nhs-warm-white border-y border-gray-100 py-20">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-900 mb-10 text-center">What you will discover</h2>
+            <ul className="space-y-4">
+              {benefits.map((benefit, i) => (
+                <li key={i} className="flex gap-3 items-start">
+                  <span className="mt-0.5 flex-none w-5 h-5 bg-nhs-pale-green rounded-full flex items-center justify-center">
+                    <svg className="w-3 h-3 text-nhs-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                  <p className="text-gray-700">{benefit}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
 
-          <section className="card contact-card">
-            <h2>Get your mock inspection summary</h2>
-            <p>
-              Leave your work email and we&apos;ll send a copy of this dry run checklist.
-              Phone number is optional if you want follow-up support.
-            </p>
-            <form className="contact-form" onSubmit={onContactSubmit}>
-              <label htmlFor="work-email" className="label">
-                Work email
-              </label>
-              <input
-                id="work-email"
-                type="email"
-                required
-                value={workEmail}
-                onChange={(event) => setWorkEmail(event.target.value)}
-                placeholder="manager@careprovider.co.uk"
-              />
+      <section className="max-w-5xl mx-auto px-4 py-20">
+        <div className="bg-nhs-light-blue rounded-2xl p-8 md:p-12 max-w-2xl mx-auto text-center">
+          <blockquote className="text-xl text-nhs-dark-blue font-medium leading-relaxed mb-4">
+            &ldquo;The gap isn&rsquo;t usually in the care itself &mdash; it&rsquo;s in being able to prove it quickly when inspectors ask.&rdquo;
+          </blockquote>
+          <p className="text-nhs-mid-blue text-sm">
+            Most managers know what good looks like. This tool shows where the documentation lags behind.
+          </p>
+        </div>
+      </section>
 
-              <label htmlFor="phone-number" className="label">
-                Phone number (optional)
-              </label>
-              <input
-                id="phone-number"
-                type="tel"
-                value={phoneNumber}
-                onChange={(event) => setPhoneNumber(event.target.value)}
-                placeholder="+44..."
-              />
+      <section className="bg-nhs-blue py-20">
+        <div className="max-w-5xl mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold text-white mb-4">Ready to see where you stand?</h2>
+          <p className="text-blue-100 mb-10 text-lg">Takes 10 minutes. Free. No account needed.</p>
+          <Link
+            href="/inspect"
+            className="inline-flex items-center bg-white text-nhs-blue text-lg font-semibold px-8 py-4 rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            Start Free Mock Inspection
+            <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </Link>
+        </div>
+      </section>
 
-              <button type="submit" disabled={saving}>
-                {saving ? 'Saving...' : 'Save details'}
-              </button>
-              {contactSaved && (
-                <p className="contact-success">
-                  Details saved. Thanks - your inspection prep summary is ready to send.
-                </p>
-              )}
-            </form>
-          </section>
-        </>
-      )}
-    </main>
-  );
+      <footer className="border-t border-gray-100 py-8">
+        <div className="max-w-5xl mx-auto px-4 text-center text-sm text-gray-500">
+          <p>Built to help care providers prepare confidently for CQC inspections.</p>
+        </div>
+      </footer>
+    </div>
+  )
 }
